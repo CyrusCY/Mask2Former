@@ -3,7 +3,7 @@
 import argparse
 import glob
 import multiprocessing as mp
-import os, json
+import os
 
 # fmt: off
 import sys
@@ -97,7 +97,6 @@ def test_opencv_video_format(codec, file_ext):
 
 
 if __name__ == "__main__":
-
     mp.set_start_method("spawn", force=True)
     args = get_parser().parse_args()
     setup_logger(name="fvcore")
@@ -105,66 +104,27 @@ if __name__ == "__main__":
     logger.info("Arguments: " + str(args))
 
     cfg = setup_cfg(args)
+
     demo = VisualizationDemo(cfg)
 
-    # if args.input:
-    #     if len(args.input) == 1:
-    #         args.input = glob.glob(os.path.expanduser(args.input[0]))
-    #         assert args.input, "The input path(s) was not found"
-
     base_path = "/workspace/data/"
-    img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
-    # print(img_list)
-    # annotation = {}
-    confidence_scores = [0.9, 0.8, 0.7, 0.6, 0.45, 0.3, 0.15]
-    for confidence_score in confidence_scores:
-        for path in tqdm.tqdm(img_list):
-            gt_mask_path = path.replace('/workspace/data/', 'gt_mask/')
-            image_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
-            # annotation[file_name] = {}
-            # use PIL, to be consistent with evaluation
-            img = read_image(path, format="BGR")
-            # start_time = time.time()
-            test_data, images_PQ, images_f1, images_recall, images_precision = demo.run_on_image(img, image_name, gt_mask_path, confidence_score)
-            # logger.info(
-            #     "{}: {} in {:.2f}s".format(
-            #         path,
-            #         "detected {} instances".format(len(predictions["instances"]))
-            #         if "instances" in predictions
-            #         else "finished",
-            #         time.time() - start_time,
-            #     )
-            # )
-        overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
-        overall_F1 = 100 * sum(images_f1) / len(images_f1)
-        overall_recall_ = 100 * sum(images_recall) / len(images_recall)
-        overall_precision_ = 100 * sum(images_precision) / len(images_precision)
-        test_data["overall"] = {
-            "overall_PQ": overall_PQ,
-            "overall_F1": overall_F1,
-            "overall_recall": overall_recall_,
-            "overall_precision": overall_precision_
-        }
-        print(overall_PQ)
-        print(overall_F1)
-        print(overall_recall_)
-        print(overall_precision_)
+    img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
+    for path in tqdm.tqdm(img_list):
+        # use PIL, to be consistent with evaluation
+        img = read_image(path, format="BGR")
+        start_time = time.time()
+        predictions, visualized_output = demo.run_on_image(img)
+        logger.info(
+            "{}: {} in {:.2f}s".format(
+                path,
+                "detected {} instances".format(len(predictions["instances"]))
+                if "instances" in predictions
+                else "finished",
+                time.time() - start_time,
+            )
+        )
 
-        json_data = json.dumps(test_data)
-        with open(f'test_result_{confidence_score}.json','w') as f:
-            f.write(json_data)
-        
-        # if args.output:
-        #     if os.path.isdir(args.output):
-        #         assert os.path.isdir(args.output), args.output
-        #         out_filename = os.path.join(args.output, os.path.basename(path))
-        #     else:
-        #         assert len(args.input) == 1, "Please specify a directory with args.output"
-        #         out_filename = args.output
-        #     visualized_output.save(out_filename)
-        # else:
-        #     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-        #     cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])
-        #     if cv2.waitKey(0) == 27:
-        #         break  # esc to quit
+        out_path = path.replace("/workspace/data/", "/workspace/data/vis/")
+        print(out_path)
+        visualized_output.save(out_path)
 

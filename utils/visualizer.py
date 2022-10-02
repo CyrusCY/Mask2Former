@@ -244,13 +244,13 @@ def _create_text_labels(classes, scores, class_names, is_crowd=None):
             labels = [class_names[i] for i in classes]
         else:
             labels = [str(i) for i in classes]
-    # if scores is not None:
-    #     if labels is None:
-    #         labels = ["{:.0f}%".format(s * 100) for s in scores]
-    #     else:
-    #         labels = ["{} {:.0f}%".format(l, s * 100) for l, s in zip(labels, scores)]
-    # if labels is not None and is_crowd is not None:
-    #     labels = [l + ("|crowd" if crowd else "") for l, crowd in zip(labels, is_crowd)]
+    if scores is not None:
+        if labels is None:
+            labels = ["{:.0f}%".format(s * 100) for s in scores]
+        else:
+            labels = ["{} {:.0f}%".format(l, s * 100) for l, s in zip(labels, scores)]
+    if labels is not None and is_crowd is not None:
+        labels = [l + ("|crowd" if crowd else "") for l, crowd in zip(labels, is_crowd)]
     return labels
 
 
@@ -354,7 +354,7 @@ class Visualizer:
 
     # TODO implement a fast, rasterized version using OpenCV
 
-    def __init__(self, img_rgb, metadata=None, scale=1.0, instance_mode=ColorMode.IMAGE):
+    def __init__(self, img_rgb, metadata=None, scale=3.0, instance_mode=ColorMode.IMAGE):
         """
         Args:
             img_rgb: a numpy array of shape (H, W, C), where H and W correspond to
@@ -366,8 +366,8 @@ class Visualizer:
             instance_mode (ColorMode): defines one of the pre-defined style for drawing
                 instances on an image.
         """
-        # self.img = np.asarray(img_rgb).clip(0, 255).astype(np.uint8)
-        self.img = np.zeros(img_rgb.shape)
+        self.img = np.asarray(img_rgb).clip(0, 255).astype(np.uint8)
+        # self.img = np.zeros(img_rgb.shape)
         if metadata is None:
             metadata = MetadataCatalog.get("__nonexist__")
         self.metadata = metadata
@@ -382,7 +382,7 @@ class Visualizer:
         self.keypoint_threshold = _KEYPOINT_THRESHOLD
 
 
-    def draw_instance_predictions(self, predictions, path, annotation=None):
+    def draw_instance_predictions(self, predictions, path=None, annotation=None):
         """
         Draw instance-level prediction results on an image.
 
@@ -427,9 +427,9 @@ class Visualizer:
                 )
             )
             alpha = 0.5
-        alpha = 1
+        alpha = 0.5
         
-        _, vis_annotation = self.overlay_instances(
+        self.overlay_instances(
             masks=masks,
             boxes=boxes,
             labels=labels,
@@ -440,7 +440,7 @@ class Visualizer:
             path=path,
             annotation=annotation
         )
-        return self.output, vis_annotation
+        return self.output
 
     def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8):
         """
@@ -693,7 +693,7 @@ class Visualizer:
             assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
             keypoints = keypoints[sorted_idxs] if keypoints is not None else None
 
-        file_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
+        # file_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
         for i in range(num_instances):
             if scores[i] <= 0.5:
                     continue
@@ -703,9 +703,9 @@ class Visualizer:
             #     self.draw_box(boxes[i], edge_color=color)
 
             if masks is not None:
-                color_int = np.rint(np.multiply(color, 255)).astype(int)
-                annotation[file_name]['mask_colors'].append(color_int.tolist())
-                annotation[file_name]['bboxes256'].append(masks[i].bbox().tolist())
+                # color_int = np.rint(np.multiply(color, 255)).astype(int)
+                # annotation[file_name]['mask_colors'].append(color_int.tolist())
+                # annotation[file_name]['bboxes256'].append(masks[i].bbox().tolist())
                 for segment in masks[i].polygons:
                     self.draw_polygon(segment.reshape(-1, 2), color, alpha=alpha)
                 # contours, hierachy = cv2.findContours(masks[i], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -714,57 +714,58 @@ class Visualizer:
                 # cv2.imwrite(f'contours.png',img_contours) 
 
             if labels is not None:
-                annotation[file_name]['recogn_id'].append(int(labels[i]))
+                # annotation[file_name]['recogn_id'].append(int(labels[i]))
                 # first get a box
                 # if boxes is not None:
                 #     x0, y0, x1, y1 = boxes[i]
                 #     text_pos = (x0, y0)  # if drawing boxes, put text on the box corner.
                 #     horiz_align = "left"
-                # if masks is not None:
-                #     # skip small mask without polygon
-                #     if len(masks[i].polygons) == 0:
-                #         continue
+                if masks is not None:
+                    # skip small mask without polygon
+                    if len(masks[i].polygons) == 0:
+                        continue
 
-                    # x0, y0, x1, y1 = masks[i].bbox()
+                    self.draw_box(masks[i].bbox(), edge_color=color)
+                    x0, y0, x1, y1 = masks[i].bbox()
 
-                #     # draw text in the center (defined by median) when box is not drawn
-                #     # median is less sensitive to outliers.
-                #     text_pos = np.median(masks[i].mask.nonzero(), axis=1)[::-1]
-                #     # print(labels[i])
-                #     horiz_align = "center"
-                # else:
-                #     continue  # drawing the box confidence for keypoints isn't very useful.
-                # # for small objects, draw text at the side to avoid occlusion
-                # instance_area = (y1 - y0) * (x1 - x0)
-                # if (
-                #     instance_area < _SMALL_OBJECT_AREA_THRESH * self.output.scale
-                #     or y1 - y0 < 40 * self.output.scale
-                # ):
-                #     if y1 >= self.output.height - 5:
-                #         text_pos = (x1, y0)
-                #     else:
-                #         text_pos = (x0, y1)
+                    # draw text in the center (defined by median) when box is not drawn
+                    # median is less sensitive to outliers.
+                    text_pos = np.median(masks[i].mask.nonzero(), axis=1)[::-1]
+                    # print(labels[i])
+                    horiz_align = "center"
+                else:
+                    continue  # drawing the box confidence for keypoints isn't very useful.
+                # for small objects, draw text at the side to avoid occlusion
+                instance_area = (y1 - y0) * (x1 - x0)
+                if (
+                    instance_area < _SMALL_OBJECT_AREA_THRESH * self.output.scale
+                    or y1 - y0 < 40 * self.output.scale
+                ):
+                    if y1 >= self.output.height - 5:
+                        text_pos = (x1, y0)
+                    else:
+                        text_pos = (x0, y1)
 
-                # height_ratio = (y1 - y0) / np.sqrt(self.output.height * self.output.width)
-                # lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
-                # font_size = (
-                #     np.clip((height_ratio - 0.02) / 0.08 + 1, 1.2, 2)
-                #     * 0.5
-                #     * self._default_font_size
-                # )
-                # self.draw_text(
-                #     labels[i],
-                #     text_pos,
-                #     color=lighter_color,
-                #     horizontal_alignment=horiz_align,
-                #     font_size=font_size,
-                # )
+                height_ratio = (y1 - y0) / np.sqrt(self.output.height * self.output.width)
+                lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
+                font_size = (
+                    np.clip((height_ratio - 0.02) / 0.08 + 1, 1.2, 2)
+                    * 0.5
+                    * self._default_font_size
+                )
+                self.draw_text(
+                    labels[i],
+                    text_pos,
+                    color=lighter_color,
+                    horizontal_alignment=horiz_align,
+                    font_size=font_size,
+                )
 
         # # draw keypoints
         # if keypoints is not None:
         #     for keypoints_per_instance in keypoints:
         #         self.draw_and_connect_keypoints(keypoints_per_instance)
-        return self.output, annotation
+        return self.output
 
     def overlay_rotated_instances(self, boxes=None, labels=None, assigned_colors=None):
         """
