@@ -1,5 +1,4 @@
 MODEL:
-  DEVICE: "cuda:0"
   BACKBONE:
     FREEZE_AT: 0
     NAME: "build_resnet_backbone"

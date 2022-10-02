@@ -7,12 +7,42 @@ from collections import deque
 
 import cv2
 import torch
+import numpy as np
 
+from detectron2.structures import Instances
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
-from detectron2.utils.video_visualizer import VideoVisualizer
-from detectron2.utils.visualizer import ColorMode, Visualizer
+from utils.visualizer import ColorMode, Visualizer
 
+
+DARK_RED = (136, 0, 21)
+RED = (237, 28, 36)
+ORANGE = (255, 127, 39)
+YELLOW = (255, 242, 0)
+GREEN = (34, 177, 76)
+TURQUOISE = (0, 162, 232)
+INDIGO = (63, 72, 204)
+PURPLE = (163, 73, 164)
+BROWN = (185, 122, 87)
+ROSE = (255, 174, 201)
+GOLD = (255, 201, 14)
+LIGHT_YELLOW = (239, 228, 176)
+LIME = (181, 230, 29)
+LIGHT_TURQUOISE = (153, 217, 234)
+BLUE_GRAY = (112, 146, 190)
+LAVENDER = (200, 191, 231)
+
+BBOX_COLORS = [DARK_RED, RED, ORANGE, YELLOW, GREEN, TURQUOISE, INDIGO, PURPLE,
+               BROWN, ROSE, GOLD, LIGHT_YELLOW, LIME, LIGHT_TURQUOISE, BLUE_GRAY, LAVENDER]
+
+import math
+import colorsys
+
+def color(c):
+    return int(math.floor(c * 255))
+def hsv2rgb(h, v):
+    (r, g, b) = colorsys.hsv_to_rgb(h, 1.0, v)
+    return (color(r), color(g), color(b))
 
 class VisualizationDemo(object):
     def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
@@ -36,7 +66,7 @@ class VisualizationDemo(object):
         else:
             self.predictor = DefaultPredictor(cfg)
 
-    def run_on_image(self, image):
+    def run_on_image(self, image, path, annotation):
         """
         Args:
             image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -45,87 +75,70 @@ class VisualizationDemo(object):
             predictions (dict): the output of the model.
             vis_output (VisImage): the visualized image output.
         """
+        # path1 = path.replace('data/','mask/').replace('.png','')
+        path2 = path.replace('data/','contour/')
         vis_output = None
         predictions = self.predictor(image)
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
         visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
-        if "panoptic_seg" in predictions:
-            panoptic_seg, segments_info = predictions["panoptic_seg"]
-            vis_output = visualizer.draw_panoptic_seg_predictions(
-                panoptic_seg.to(self.cpu_device), segments_info
-            )
-        else:
-            if "sem_seg" in predictions:
-                vis_output = visualizer.draw_sem_seg(
-                    predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )
-            if "instances" in predictions:
-                instances = predictions["instances"].to(self.cpu_device)
-                vis_output = visualizer.draw_instance_predictions(predictions=instances)
 
-        return predictions, vis_output
+        if "instances" in predictions:
+            instances = predictions["instances"].to(self.cpu_device)
 
-    def _frame_from_video(self, video):
-        while video.isOpened():
-            success, frame = video.read()
-            if success:
-                yield frame
-            else:
-                break
+            instances_ = Instances(instances.image_size)
+            flag = False
+            img_contours = np.zeros(image.shape)
 
-    def run_on_video(self, video):
-        """
-        Visualizes predictions on frames of the input video.
-        Args:
-            video (cv2.VideoCapture): a :class:`VideoCapture` object, whose source can be
-                either a webcam or a video file.
-        Yields:
-            ndarray: BGR visualizations of each video frame.
-        """
-        video_visualizer = VideoVisualizer(self.metadata, self.instance_mode)
+            # instance_num = 0
+            # for index in range(len(instances)):
+            #     score = instances[index].scores[0]
+            #     if score > 0.5:
+            #         instance_num += 1
 
-        def process_predictions(frame, predictions):
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            if "panoptic_seg" in predictions:
-                panoptic_seg, segments_info = predictions["panoptic_seg"]
-                vis_frame = video_visualizer.draw_panoptic_seg_predictions(
-                    frame, panoptic_seg.to(self.cpu_device), segments_info
-                )
-            elif "instances" in predictions:
-                predictions = predictions["instances"].to(self.cpu_device)
-                vis_frame = video_visualizer.draw_instance_predictions(frame, predictions)
-            elif "sem_seg" in predictions:
-                vis_frame = video_visualizer.draw_sem_seg(
-                    frame, predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )
+            colors = BBOX_COLORS
+            # if instance_num >= 16:
+            #     colors = [hsv2rgb(_id / (instance_num + 2), 1) for _id in range(instance_num + 2)]
 
-            # Converts Matplotlib RGB format to OpenCV BGR format
-            vis_frame = cv2.cvtColor(vis_frame.get_image(), cv2.COLOR_RGB2BGR)
-            return vis_frame
 
-        frame_gen = self._frame_from_video(video)
-        if self.parallel:
-            buffer_size = self.predictor.default_buffer_size
+            color_index = 0
+            file_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
+            annotation[file_name] = {
+                'bboxes256': [],
+                'mask_colors': [],
+                'recogn_id': [],
+                'contour_colors': [],
+            }
+            for index in range(len(instances)):
+                score = instances[index].scores[0]
+                if score > 0.5:
+                    mask = torch.squeeze(instances[index].pred_masks).numpy()*255
+                    mask = np.array(mask, np.uint8)
+                    contours, hierachy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    # img_contour = np.zeros(image.shape)
+                    # cv2.drawContours(img_contour, contours, -1, (255,255,255), thickness=cv2.FILLED)
 
-            frame_data = deque()
+                    color = colors[color_index]
+                    cv2.drawContours(img_contours, contours, -1, color, thickness=cv2.FILLED)
+                    # cv2.imwrite(f'{path1}_{index}.png', img_contour)
+                    cv2.imwrite(f'{path2}', img_contours)  
+                    color_index +=1
+                    mask = torch.from_numpy(mask / 255).unsqueeze(0)
+                   
+                    annotation[file_name]['contour_colors'].append(list(color))
 
-            for cnt, frame in enumerate(frame_gen):
-                frame_data.append(frame)
-                self.predictor.put(frame)
+                    if flag == False:
+                        instances_ = instances[index]
+                        masks = mask
+                        flag = True
+                    else:
+                        instances_ = Instances.cat([instances_, instances[index]])
+                        masks = torch.cat((masks, mask), 0)
+                    instances_.pred_masks = masks
+            vis_output, vis_annotation  = visualizer.draw_instance_predictions(predictions=instances_, path=path, annotation=annotation)
+            
 
-                if cnt >= buffer_size:
-                    frame = frame_data.popleft()
-                    predictions = self.predictor.get()
-                    yield process_predictions(frame, predictions)
-
-            while len(frame_data):
-                frame = frame_data.popleft()
-                predictions = self.predictor.get()
-                yield process_predictions(frame, predictions)
-        else:
-            for frame in frame_gen:
-                yield process_predictions(frame, self.predictor(frame))
+        return predictions, vis_output, vis_annotation
 
 
 class AsyncPredictor:
