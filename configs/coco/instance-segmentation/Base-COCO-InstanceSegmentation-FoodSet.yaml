@@ -1,4 +1,5 @@
 MODEL:
+  DEVICE: "cuda:0"
   BACKBONE:
     FREEZE_AT: 0
     NAME: "build_resnet_backbone"
@@ -36,7 +37,7 @@ SOLVER:
 INPUT:
   IMAGE_SIZE: 256
   MIN_SCALE: 0.1
-  MAX_SCALE: 1.0
+  MAX_SCALE: 2.0
   FORMAT: "RGB"
   DATASET_MAPPER_NAME: "coco_instance_lsj"
 TEST:
