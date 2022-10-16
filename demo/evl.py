@@ -113,8 +113,8 @@ if __name__ == "__main__":
     #         assert args.input, "The input path(s) was not found"
 
     base_path = "/workspace/data/"
-    # img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
-    img_list = [base_path + line.replace('\n','') for line in open('../data/smu_test.txt', 'r').readlines()]
+    img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
+    # img_list = [base_path + line.replace('\n','') for line in open('../data/smu_test.txt', 'r').readlines()]
     # img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
     # print(img_list)
     # annotation = {}
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         print(overall_precision_)
 
         json_data = json.dumps(test_data)
-        with open(f'test_smu_result_{confidence_score}.json','w') as f:
+        with open(f'test_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
             f.write(json_data)
         
         # if args.output:

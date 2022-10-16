@@ -108,7 +108,7 @@ if __name__ == "__main__":
     demo = VisualizationDemo(cfg)
 
     base_path = "/workspace/data/"
-    img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
+    img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
     for path in tqdm.tqdm(img_list):
         # use PIL, to be consistent with evaluation
         img = read_image(path, format="BGR")

@@ -240,10 +240,12 @@ def _create_text_labels(classes, scores, class_names, is_crowd=None):
     """
     labels = None
     if classes is not None:
-        if class_names is not None and len(class_names) > 0:
-            labels = [class_names[i] for i in classes]
-        else:
-            labels = [str(i) for i in classes]
+        # if class_names is not None and len(class_names) > 0:
+        #     print(class_names)
+        #     print(classes)
+        #     labels = [class_names[i] for i in classes]
+        # else:
+        labels = [str(i+1) for i in classes]
     if scores is not None:
         if labels is None:
             labels = ["{:.0f}%".format(s * 100) for s in scores]
@@ -427,7 +429,7 @@ class Visualizer:
                 )
             )
             alpha = 0.5
-        alpha = 0.5
+        # alpha = 1
         
         self.overlay_instances(
             masks=masks,
@@ -1157,7 +1159,7 @@ class Visualizer:
         polygon = mpl.patches.Polygon(
             segment,
             fill=True,
-            facecolor=mplc.to_rgb(color),
+            facecolor=mplc.to_rgb(color)+ (alpha,),
             # edgecolor=edge_color,
             # linewidth=max(self._default_font_size // 15 * self.output.scale, 1),
         )
