@@ -50,7 +50,7 @@ def hsv2rgb(h, v):
 
 SIZE = 256
 testing_data = OrderedDict()
-overall_iou, overall_tp, overall_num_instances = 0, 0, 0
+
 images_recall, images_precision, images_f1, images_PQ = [], [], [], []
 
 metadata = {}
@@ -96,7 +96,7 @@ class VisualizationDemo(object):
             predictions (dict): the output of the model.
             vis_output (VisImage): the visualized image output.
         """
-        global testing_data, overall_iou, overall_tp, overall_num_instances, images_recall, images_precision, images_f1, images_PQ
+        global testing_data, images_recall, images_precision, images_f1, images_PQ
 
         predictions = self.predictor(image)
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
@@ -142,7 +142,6 @@ class VisualizationDemo(object):
                     im = Image.open('temp.png')
                     im = im.convert('1') 
                     img_contours = np.array(im)
-
                     for gt_id_ in gt_ids:
                         gt_binary_mask = np.zeros((SIZE, SIZE))
                         gt_binary_mask[gt_instance_mask == gt_id_] = 1
@@ -190,9 +189,9 @@ class VisualizationDemo(object):
             testing_data[image_name]['precision'] = precision_
             testing_data[image_name]['pq'] = pq_
 
-            overall_iou += sum_iou
-            overall_tp += tp
-            overall_num_instances += len(semantic_performance_)
+            # overall_iou += sum_iou
+            # overall_tp += tp
+            # overall_num_instances += len(semantic_performance_)
 
             images_PQ.append(pq_)
             precision__ = sum(precision_) / max(len(precision_), 1)

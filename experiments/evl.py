@@ -92,21 +92,21 @@ if __name__ == "__main__":
     demo = VisualizationDemo(cfg)
 
     base_path = "/workspace/data/"
-    img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
+    # img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
     # img_list = [base_path + line.replace('\n','') for line in open('../data/smu_test.txt', 'r').readlines()]
-    # img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
+    img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
     confidence_scores = [0.3, 0.4, 0.6, 0.7]
     for confidence_score in confidence_scores:
-        global testing_data, overall_iou, overall_tp, overall_num_instances, images_recall, images_precision, images_f1, images_PQ
+        global testing_data, images_recall, images_precision, images_f1, images_PQ
         testing_data = OrderedDict()
-        overall_iou, overall_tp, overall_num_instances = 0, 0, 0
         images_recall, images_precision, images_f1, images_PQ = [], [], [], []
-
+        print(len(testing_data), len(images_PQ), len(images_f1))
         for path in tqdm.tqdm(img_list):
             gt_mask_path = path.replace('/workspace/data/', 'gt_mask/')
             image_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
             img = read_image(path, format="BGR")
             test_data, images_PQ, images_f1, images_recall, images_precision = demo.run_on_image(img, image_name, gt_mask_path, confidence_score)
+        print(len(images_PQ), len(images_f1))
         overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
         overall_F1 = 100 * sum(images_f1) / len(images_f1)
         overall_recall_ = 100 * sum(images_recall) / len(images_recall)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         print(overall_precision_)
 
         json_data = json.dumps(test_data)
-        with open(f'test_mixvegrice_r50_40kits_batch8_result_{confidence_score}.json','w') as f:
+        with open(f'test_uec_r50_90kits_batch8_result_{confidence_score}.json','w') as f:
             f.write(json_data)
         
         # if args.output:
