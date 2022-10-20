@@ -15,7 +15,7 @@ from utils.visualizer import ColorMode, Visualizer
 
 
 class VisualizationDemo(object):
-    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
+    def __init__(self, cfg, instance_mode=ColorMode.IMAGE_BW, parallel=False):
         """
         Args:
             cfg (CfgNode):
@@ -36,7 +36,7 @@ class VisualizationDemo(object):
         else:
             self.predictor = DefaultPredictor(cfg)
 
-    def run_on_image(self, image):
+    def run_on_image(self, image, path):
         """
         Args:
             image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -52,7 +52,7 @@ class VisualizationDemo(object):
         visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
         if "instances" in predictions:
                 instances = predictions["instances"].to(self.cpu_device)
-                vis_output = visualizer.draw_instance_predictions(predictions=instances)
+                vis_output = visualizer.draw_instance_predictions(predictions=instances, path=path)
 
         return predictions, vis_output
 

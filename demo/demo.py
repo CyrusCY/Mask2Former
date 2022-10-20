@@ -111,9 +111,10 @@ if __name__ == "__main__":
     img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
     for path in tqdm.tqdm(img_list):
         # use PIL, to be consistent with evaluation
+        img_name = path.replace("/workspace/data/", "").replace(".png","").replace("/","_")
         img = read_image(path, format="BGR")
         start_time = time.time()
-        predictions, visualized_output = demo.run_on_image(img)
+        predictions, visualized_output = demo.run_on_image(img,img_name)
         logger.info(
             "{}: {} in {:.2f}s".format(
                 path,

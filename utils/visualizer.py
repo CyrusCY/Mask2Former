@@ -356,7 +356,7 @@ class Visualizer:
 
     # TODO implement a fast, rasterized version using OpenCV
 
-    def __init__(self, img_rgb, metadata=None, scale=3.0, instance_mode=ColorMode.IMAGE):
+    def __init__(self, img_rgb, metadata=None, scale=1.0, instance_mode=ColorMode.IMAGE):
         """
         Args:
             img_rgb: a numpy array of shape (H, W, C), where H and W correspond to
@@ -696,10 +696,13 @@ class Visualizer:
             keypoints = keypoints[sorted_idxs] if keypoints is not None else None
 
         # file_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
+        count = 0
+        img_contours = np.zeros(self.img.shape)
+        text_img = np.zeros(self.img.shape)
         for i in range(num_instances):
-            if scores[i] <= 0.5:
+            if scores[i] <= 0.3:
                     continue
-
+            count += 1
             color = assigned_colors[i]
             # if boxes is not None:
             #     self.draw_box(boxes[i], edge_color=color)
@@ -714,7 +717,6 @@ class Visualizer:
                 # img_contours = np.zeros(self.img.shape)
                 # cv2.drawContours(img_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
                 # cv2.imwrite(f'contours.png',img_contours) 
-
             if labels is not None:
                 # annotation[file_name]['recogn_id'].append(int(labels[i]))
                 # first get a box
@@ -762,11 +764,39 @@ class Visualizer:
                     horizontal_alignment=horiz_align,
                     font_size=font_size,
                 )
+            # print(masks[i].__dir__())
+            mask = np.array(masks[i].mask, np.uint8)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            new_contours = np.zeros(self.img.shape)
+            cv2.drawContours(new_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
+            if count > 1:
+                w_interval = np.full((self.img.shape[0],20 ,self.img.shape[2],),255)
+                img_contours = np.concatenate((img_contours, w_interval), axis=1)
+                img_contours = np.concatenate((img_contours, new_contours), axis=1)
 
+                new_text_img = np.zeros(self.img.shape)
+                position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/2))
+                cv2.putText(new_text_img, f"id: {labels[i]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                text_img = np.concatenate((text_img, w_interval), axis=1)
+                text_img = np.concatenate((text_img, new_text_img), axis=1)
+            else:
+                img_contours = new_contours
+                position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/2))
+                cv2.putText(text_img, f"id: {labels[i]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
         # # draw keypoints
         # if keypoints is not None:
         #     for keypoints_per_instance in keypoints:
         #         self.draw_and_connect_keypoints(keypoints_per_instance)
+        h_interval = np.full((20,img_contours.shape[1] ,img_contours.shape[2],),255)
+        img_contours = np.concatenate((h_interval, img_contours), axis=0)
+        img_contours = np.concatenate((img_contours, h_interval), axis=0)
+        img_contours = np.concatenate((img_contours, text_img), axis=0)
+        img_contours = np.concatenate((img_contours, h_interval), axis=0)
+        s_interval = np.full((img_contours.shape[0],20 ,img_contours.shape[2],),255)
+        img_contours = np.concatenate((s_interval, img_contours), axis=1)
+        img_contours = np.concatenate((img_contours, s_interval), axis=1)
+        cv2.imwrite(f'../data/contour/mixvegrice/{path}.png', img_contours)
+
         return self.output
 
     def overlay_rotated_instances(self, boxes=None, labels=None, assigned_colors=None):
