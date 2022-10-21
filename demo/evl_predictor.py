@@ -130,7 +130,7 @@ class VisualizationDemo(object):
                 score = instances[index].scores[0]
                 if score > confidence_score:
                     filtered_instances.append(instances[index])
-            print(len(filtered_instances))
+            
             binary_mask_with_class = []
             for i, instance in enumerate(filtered_instances):
                 instance_mask = torch.squeeze(instance.pred_masks).numpy()*255
@@ -139,103 +139,85 @@ class VisualizationDemo(object):
                 img_contour = np.zeros(image.shape)
                 cv2.drawContours(img_contour, contour, -1, (255,255,255), thickness=cv2.FILLED)
                 _, blackAndWhiteImage = cv2.threshold(img_contour, 1, 1, cv2.THRESH_BINARY)
-                binary_mask_with_class.append((instance.scores.tolist()[0], instance.pred_classes.tolist()[0]+1,))
-            print(binary_mask_with_class)
-                # flag = True
-                # for idx in range(len(valid_instances)):
-                #     mask = torch.squeeze(valid_instances[idx].pred_masks).numpy()*255
-                #     mask = np.array(mask, np.uint8)
-                #     mask_contour, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                #     img_mask_contour = np.zeros(image.shape)
-                #     cv2.drawContours(img_mask_contour, mask_contour, -1, (255,255,255), thickness=cv2.FILLED)
-                #     # cv2.imwrite(f'temp2.png', img_mask_contour)
-                #     a_and_b = cv2.bitwise_and(img_contour, img_mask_contour)
-                #     if np.sum(a_and_b == 255) != 0:
-                #         if instance.scores[0] >= valid_instances[idx].scores[0]:
-                #             a_sub_ab = cv2.bitwise_xor(img_mask_contour, a_and_b)
-                #             if np.sum(a_sub_ab == 255) != 0:
-                #                 cv2.imwrite(f'temp_and{i}_{idx}_{np.sum(a_sub_ab == 255)}.png', a_sub_ab)
-                #         else:
-                #             a_sub_ab = cv2.bitwise_xor(img_contour, a_and_b)
-                #             if np.sum(a_sub_ab == 255) != 0:
-                #                 cv2.imwrite(f'temp_and{i}_{idx}_{np.sum(a_sub_ab == 255)}.png', a_sub_ab)
+                binary_mask_with_class.append([blackAndWhiteImage, instance.scores.tolist()[0], instance.pred_classes.tolist()[0]+1])
+            binary_mask_with_class = sorted(binary_mask_with_class, key=lambda d: d[1], reverse=True) 
+            instance_masks = []
+            for img in binary_mask_with_class:
+                for idx, mask in enumerate(instance_masks):
+                    x_and_y = cv2.bitwise_and(img[0], mask[0])
+                    if np.sum(x_and_y == 255) != 0:
+                            img[0] = cv2.bitwise_xor(img[0], x_and_y)
+                if np.sum(img[0] == 255) > 0:
+                    instance_masks.append(img)
 
-                # if flag:
-                #     valid_instances.append(instance)
-                
+            for index in range(len(instance_masks)):
+                pred_id += 1
 
+                recogn_ids.append(instance_masks[index][2])
 
+                # mask = torch.squeeze(instances[index].pred_masks).numpy()*255
+                # mask = np.array(mask, np.uint8)
+                # contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                # img_contours = np.zeros(image.shape)
+                # cv2.drawContours(img_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
+                # cv2.imwrite(f'temp.png', img_contours)
+                # mask = torch.from_numpy(mask / 255).unsqueeze(0)
+                # im = Image.open('temp.png')
+                # im = im.convert('1') 
+                img_contours = instance_masks[index]
 
-            # for index in range(len(instances)):
-            #     score = instances[index].scores[0]
-            #     if score > confidence_score:
-            #         pred_id += 1
+                for gt_id_ in gt_ids:
+                    gt_binary_mask = np.zeros((SIZE, SIZE))
+                    gt_binary_mask[gt_instance_mask == gt_id_] = 1
+                    
+                    tp = np.logical_and(gt_binary_mask, img_contours)
+                    union = np.sum(gt_binary_mask) + np.sum(img_contours) - np.sum(tp)
+                    iou = 0 if union == 0 else np.sum(tp) / np.sum(union)
 
-            #         recogn_ids.append(instances[index].pred_classes.tolist()[0]+1)
-
-            #         mask = torch.squeeze(instances[index].pred_masks).numpy()*255
-            #         mask = np.array(mask, np.uint8)
-            #         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            #         img_contours = np.zeros(image.shape)
-            #         cv2.drawContours(img_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
-            #         cv2.imwrite(f'temp.png', img_contours)
-            #         mask = torch.from_numpy(mask / 255).unsqueeze(0)
-            #         im = Image.open('temp.png')
-            #         im = im.convert('1') 
-            #         img_contours = np.array(im)
-
-            #         for gt_id_ in gt_ids:
-            #             gt_binary_mask = np.zeros((SIZE, SIZE))
-            #             gt_binary_mask[gt_instance_mask == gt_id_] = 1
-                        
-            #             tp = np.logical_and(gt_binary_mask, img_contours)
-            #             union = np.sum(gt_binary_mask) + np.sum(img_contours) - np.sum(tp)
-            #             iou = 0 if union == 0 else np.sum(tp) / np.sum(union)
-
-            #             gt_pred_pairs.append((iou, int(gt_id_), int(pred_id)))                        
+                    gt_pred_pairs.append((iou, int(gt_id_), int(pred_id)))                        
             
-            # gt_pred_pairs.sort(reverse=True)
-            # gt_, pred_ = OrderedDict(), OrderedDict()
-            # for iou, gt_id, pred_id in gt_pred_pairs:
-            #     gt_recogn_ = gt_image_data['recogn_id'][gt_id-1]
-            #     pred_recogn_ = recogn_ids[pred_id-1]
-            #     if iou == 0: continue
-            #     if (gt_id in gt_ and pred_id in pred_): continue
-            #     if (gt_id in gt_ or pred_id in pred_) and (gt_recogn_ != pred_recogn_): continue
-            #     semantic_performance_.append((iou, gt_recogn_, pred_recogn_))
-            #     gt_[gt_id] = True
-            #     pred_[pred_id] = True
+            gt_pred_pairs.sort(reverse=True)
+            gt_, pred_ = OrderedDict(), OrderedDict()
+            for iou, gt_id, pred_id in gt_pred_pairs:
+                gt_recogn_ = gt_image_data['recogn_id'][gt_id-1]
+                pred_recogn_ = recogn_ids[pred_id-1]
+                if iou == 0: continue
+                if (gt_id in gt_ and pred_id in pred_): continue
+                if (gt_id in gt_ or pred_id in pred_) and (gt_recogn_ != pred_recogn_): continue
+                semantic_performance_.append((iou, gt_recogn_, pred_recogn_))
+                gt_[gt_id] = True
+                pred_[pred_id] = True
 
-            # for iou, gt_id, pred_id in gt_pred_pairs:
-            #     if gt_id not in gt_:
-            #         semantic_performance_.append((0, gt_image_data['recogn_id'][gt_id-1], 0)) #false negative
-            #         gt_[gt_id] = False
+            for iou, gt_id, pred_id in gt_pred_pairs:
+                if gt_id not in gt_:
+                    semantic_performance_.append((0, gt_image_data['recogn_id'][gt_id-1], 0)) #false negative
+                    gt_[gt_id] = False
 
-            #     if pred_id not in pred_:
-            #         semantic_performance_.append((0, 0, recogn_ids[pred_id-1])) #false positive
-            #         pred_[pred_id] = False
+                if pred_id not in pred_:
+                    semantic_performance_.append((0, 0, recogn_ids[pred_id-1])) #false positive
+                    pred_[pred_id] = False
 
-            # tp, sum_iou = 0, 0
-            # recall_, precision_ = [], []
-            # for iou, gt, pred in semantic_performance_:
-            #     if gt == pred:
-            #         tp += 1
-            #         sum_iou += iou
-            #     if gt != 0:
-            #         recall_.append(int(gt == pred))
-            #     if pred != 0:
-            #         precision_.append(int(gt == pred))
-            # pq_ = sum_iou / max(len(semantic_performance_) / 2 + tp / 2, 1)
+            tp, sum_iou = 0, 0
+            recall_, precision_ = [], []
+            for iou, gt, pred in semantic_performance_:
+                if gt == pred:
+                    tp += 1
+                    sum_iou += iou
+                if gt != 0:
+                    recall_.append(int(gt == pred))
+                if pred != 0:
+                    precision_.append(int(gt == pred))
+            pq_ = sum_iou / max(len(semantic_performance_) / 2 + tp / 2, 1)
             # testing_data[image_name]['semantic_performance'] = semantic_performance_
             # testing_data[image_name]['recall'] = recall_
             # testing_data[image_name]['precision'] = precision_
-            # testing_data[image_name]['pq'] = pq_
+            testing_data[image_name]['pq'] = pq_
 
             # overall_iou += sum_iou
             # overall_tp += tp
             # overall_num_instances += len(semantic_performance_)
 
-            # images_PQ.append(pq_)
+            images_PQ.append(pq_)
             # precision__ = sum(precision_) / max(len(precision_), 1)
             # recall__ = sum(recall_) / max(len(recall_), 1)
             # f1__ = 2 * precision__ * recall__ / max((precision__ + recall__), 1)
@@ -243,7 +225,7 @@ class VisualizationDemo(object):
             # images_precision.append(precision__)
             # testing_data[image_name]['f1'] = f1__
             # images_f1.append(f1__)
-            # print(f'{confidence_score} - {image_name} PQ: {pq_} F1: {f1__}')
+            print(f'{confidence_score} - {image_name} PQ: {pq_} F1: {0}')
             return testing_data, images_PQ, images_f1, images_recall, images_precision
 
 

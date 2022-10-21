@@ -129,24 +129,24 @@ if __name__ == "__main__":
             # start_time = time.time()
             test_data, images_PQ, images_f1, images_recall, images_precision = demo.run_on_image(img, image_name, gt_mask_path, confidence_score)
 
-        # overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
+        overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
         # overall_F1 = 100 * sum(images_f1) / len(images_f1)
         # overall_recall_ = 100 * sum(images_recall) / len(images_recall)
         # overall_precision_ = 100 * sum(images_precision) / len(images_precision)
-        # test_data["overall"] = {
-        #     "overall_PQ": overall_PQ,
-        #     "overall_F1": overall_F1,
-        #     "overall_recall": overall_recall_,
-        #     "overall_precision": overall_precision_
-        # }
-        # print(overall_PQ)
+        test_data["overall"] = {
+            "overall_PQ": overall_PQ,
+            # "overall_F1": overall_F1,
+            # "overall_recall": overall_recall_,
+            # "overall_precision": overall_precision_
+        }
+        print(overall_PQ)
         # print(overall_F1)
         # print(overall_recall_)
         # print(overall_precision_)
 
-        # json_data = json.dumps(test_data)
-        # with open(f'test_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
-        #     f.write(json_data)
+        json_data = json.dumps(test_data)
+        with open(f'test_pq_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
+            f.write(json_data)
         
         # if args.output:
         #     if os.path.isdir(args.output):
