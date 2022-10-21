@@ -118,9 +118,9 @@ if __name__ == "__main__":
     # img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
     # print(img_list)
     # annotation = {}
-    confidence_scores = [0.5]
+    confidence_scores = [0.3]
     for confidence_score in confidence_scores:
-        for path in tqdm.tqdm(img_list):
+        for path in tqdm.tqdm(img_list[:1]):
             gt_mask_path = path.replace('/workspace/data/', 'gt_mask/')
             image_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
             # annotation[file_name] = {}
@@ -128,33 +128,25 @@ if __name__ == "__main__":
             img = read_image(path, format="BGR")
             # start_time = time.time()
             test_data, images_PQ, images_f1, images_recall, images_precision = demo.run_on_image(img, image_name, gt_mask_path, confidence_score)
-            # logger.info(
-            #     "{}: {} in {:.2f}s".format(
-            #         path,
-            #         "detected {} instances".format(len(predictions["instances"]))
-            #         if "instances" in predictions
-            #         else "finished",
-            #         time.time() - start_time,
-            #     )
-            # )
-        overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
-        overall_F1 = 100 * sum(images_f1) / len(images_f1)
-        overall_recall_ = 100 * sum(images_recall) / len(images_recall)
-        overall_precision_ = 100 * sum(images_precision) / len(images_precision)
-        test_data["overall"] = {
-            "overall_PQ": overall_PQ,
-            "overall_F1": overall_F1,
-            "overall_recall": overall_recall_,
-            "overall_precision": overall_precision_
-        }
-        print(overall_PQ)
-        print(overall_F1)
-        print(overall_recall_)
-        print(overall_precision_)
 
-        json_data = json.dumps(test_data)
-        with open(f'test_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
-            f.write(json_data)
+        # overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
+        # overall_F1 = 100 * sum(images_f1) / len(images_f1)
+        # overall_recall_ = 100 * sum(images_recall) / len(images_recall)
+        # overall_precision_ = 100 * sum(images_precision) / len(images_precision)
+        # test_data["overall"] = {
+        #     "overall_PQ": overall_PQ,
+        #     "overall_F1": overall_F1,
+        #     "overall_recall": overall_recall_,
+        #     "overall_precision": overall_precision_
+        # }
+        # print(overall_PQ)
+        # print(overall_F1)
+        # print(overall_recall_)
+        # print(overall_precision_)
+
+        # json_data = json.dumps(test_data)
+        # with open(f'test_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
+        #     f.write(json_data)
         
         # if args.output:
         #     if os.path.isdir(args.output):
