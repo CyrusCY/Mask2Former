@@ -125,32 +125,49 @@ class VisualizationDemo(object):
         if "instances" in predictions:
             instances = predictions["instances"].to(self.cpu_device)
 
-            for index in range(len(instances)):
+            filtered_instances = []
+            for index in range(len(instances)): 
                 score = instances[index].scores[0]
                 if score > confidence_score:
-                    pred_id += 1
+                    filtered_instances.append(instances[index])
+            
+            binary_mask_with_class = []
+            for i, instance in enumerate(filtered_instances):
+                instance_mask = torch.squeeze(instance.pred_masks).numpy()*255
+                instance_mask = np.array(instance_mask, np.uint8)
+                contour, _ = cv2.findContours(instance_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                img_contour = np.zeros(image.shape)
+                cv2.drawContours(img_contour, contour, -1, (255,255,255), thickness=cv2.FILLED)
+                _, blackAndWhiteImage = cv2.threshold(img_contour, 1, 1, cv2.THRESH_BINARY)
+                binary_mask_with_class.append([blackAndWhiteImage, instance.scores.tolist()[0], instance.pred_classes.tolist()[0]+1])
+            binary_mask_with_class = sorted(binary_mask_with_class, key=lambda d: d[1], reverse=True) 
+            instance_masks = []
+            for img in binary_mask_with_class:
+                for idx, mask in enumerate(instance_masks):
+                    x_and_y = cv2.bitwise_and(img[0], mask[0])
+                    if np.sum(x_and_y == 1) != 0:
+                            img[0] = cv2.bitwise_xor(img[0], x_and_y)
+                if np.sum(img[0] == 1) > 0:
+                    instance_masks.append(img)            
 
-                    recogn_ids.append(instances[index].pred_classes.tolist()[0]+1)
+            for index in range(len(instance_masks)):
+                pred_id += 1
 
-                    mask = torch.squeeze(instances[index].pred_masks).numpy()*255
-                    mask = np.array(mask, np.uint8)
-                    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    img_contours = np.zeros(image.shape)
-                    cv2.drawContours(img_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
-                    cv2.imwrite(f'temp.png', img_contours)
-                    mask = torch.from_numpy(mask / 255).unsqueeze(0)
-                    im = Image.open('temp.png')
-                    im = im.convert('1') 
-                    img_contours = np.array(im)
-                    for gt_id_ in gt_ids:
-                        gt_binary_mask = np.zeros((SIZE, SIZE))
-                        gt_binary_mask[gt_instance_mask == gt_id_] = 1
-                        
-                        tp = np.logical_and(gt_binary_mask, img_contours)
-                        union = np.sum(gt_binary_mask) + np.sum(img_contours) - np.sum(tp)
-                        iou = 0 if union == 0 else np.sum(tp) / np.sum(union)
+                recogn_ids.append(instance_masks[index][2])
 
-                        gt_pred_pairs.append((iou, int(gt_id_), int(pred_id)))                        
+                cv2.imwrite(f'temp.png', instance_masks[index][0]*255)
+                im = Image.open('temp.png')
+                im = im.convert('1') 
+                img_contours = np.array(im)
+                for gt_id_ in gt_ids:
+                    gt_binary_mask = np.zeros((SIZE, SIZE))
+                    gt_binary_mask[gt_instance_mask == gt_id_] = 1
+                    
+                    tp = np.logical_and(gt_binary_mask, img_contours)
+                    union = np.sum(gt_binary_mask) + np.sum(img_contours) - np.sum(tp)
+                    iou = 0 if union == 0 else np.sum(tp) / np.sum(union)
+
+                    gt_pred_pairs.append((iou, int(gt_id_), int(pred_id)))                        
             
             gt_pred_pairs.sort(reverse=True)
             gt_, pred_ = OrderedDict(), OrderedDict()
@@ -188,10 +205,6 @@ class VisualizationDemo(object):
             testing_data[image_name]['recall'] = recall_
             testing_data[image_name]['precision'] = precision_
             testing_data[image_name]['pq'] = pq_
-
-            # overall_iou += sum_iou
-            # overall_tp += tp
-            # overall_num_instances += len(semantic_performance_)
 
             images_PQ.append(pq_)
             precision__ = sum(precision_) / max(len(precision_), 1)
