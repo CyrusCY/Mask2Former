@@ -24,7 +24,7 @@ from detectron2.projects.deeplab import add_deeplab_config
 from detectron2.utils.logger import setup_logger
 
 from mask2former import add_maskformer2_config
-from evl_predictor import VisualizationDemo
+from evl_predictor import VisualizationDemo, images_recall, images_precision, images_f1, images_PQ
 
 
 # constants
@@ -113,14 +113,16 @@ if __name__ == "__main__":
     #         assert args.input, "The input path(s) was not found"
 
     base_path = "/workspace/data/"
-    img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
-    # img_list = [base_path + line.replace('\n','') for line in open('../data/smu_test.txt', 'r').readlines()]
+    # img_list = [base_path + line.replace('\n','') for line in open('../data/mixvegrice_test.txt', 'r').readlines()]
+    img_list = [base_path + line.replace('\n','') for line in open('../data/smu_test.txt', 'r').readlines()]
     # img_list = [base_path + line.replace('\n','') for line in open('../data/uec_test.txt', 'r').readlines()]
     # print(img_list)
     # annotation = {}
-    confidence_scores = [0.3]
+    confidence_scores = [0.7, 0.8, 0.9]
     for confidence_score in confidence_scores:
-        for path in tqdm.tqdm(img_list[:1]):
+        # global images_recall, images_precision, images_f1, images_PQ
+        images_recall, images_precision, images_f1, images_PQ = [], [], [], []
+        for path in tqdm.tqdm(img_list[:10]):
             gt_mask_path = path.replace('/workspace/data/', 'gt_mask/')
             image_name = path.replace('/workspace/data/','').replace('/','_').replace('.png','')
             # annotation[file_name] = {}
@@ -130,22 +132,22 @@ if __name__ == "__main__":
             test_data, images_PQ, images_f1, images_recall, images_precision = demo.run_on_image(img, image_name, gt_mask_path, confidence_score)
 
         overall_PQ = 100 * sum(images_PQ) / len(images_PQ)
-        # overall_F1 = 100 * sum(images_f1) / len(images_f1)
-        # overall_recall_ = 100 * sum(images_recall) / len(images_recall)
-        # overall_precision_ = 100 * sum(images_precision) / len(images_precision)
+        overall_F1 = 100 * sum(images_f1) / len(images_f1)
+        overall_recall_ = 100 * sum(images_recall) / len(images_recall)
+        overall_precision_ = 100 * sum(images_precision) / len(images_precision)
         test_data["overall"] = {
             "overall_PQ": overall_PQ,
-            # "overall_F1": overall_F1,
-            # "overall_recall": overall_recall_,
-            # "overall_precision": overall_precision_
+            "overall_F1": overall_F1,
+            "overall_recall": overall_recall_,
+            "overall_precision": overall_precision_
         }
         print(overall_PQ)
-        # print(overall_F1)
+        print(overall_F1)
         # print(overall_recall_)
         # print(overall_precision_)
 
         json_data = json.dumps(test_data)
-        with open(f'test_pq_mixvegrice_r50_20kits_batch8_result_{confidence_score}.json','w') as f:
+        with open(f'test_x_pq_smu_r50_60kits_batch8_result_{confidence_score}.json','w') as f:
             f.write(json_data)
         
         # if args.output:

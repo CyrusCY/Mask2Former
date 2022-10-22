@@ -50,11 +50,11 @@ def hsv2rgb(h, v):
 
 SIZE = 256
 testing_data = OrderedDict()
-overall_iou, overall_tp, overall_num_instances = 0, 0, 0
+# overall_iou, overall_tp, overall_num_instances = 0, 0, 0
 images_recall, images_precision, images_f1, images_PQ = [], [], [], []
 
 metadata = {}
-with open('metadata.json','r') as json_file:
+with open('metadata_mini.json','r') as json_file:
     metadata = json.load(json_file)
 
 def get_binary_mask(instance_mask, color):
@@ -96,8 +96,7 @@ class VisualizationDemo(object):
             predictions (dict): the output of the model.
             vis_output (VisImage): the visualized image output.
         """
-        global testing_data, overall_iou, overall_tp, overall_num_instances, images_recall, images_precision, images_f1, images_PQ
-
+        global testing_data, images_recall, images_precision, images_f1, images_PQ
         predictions = self.predictor(image)
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
@@ -145,10 +144,12 @@ class VisualizationDemo(object):
             for img in binary_mask_with_class:
                 for idx, mask in enumerate(instance_masks):
                     x_and_y = cv2.bitwise_and(img[0], mask[0])
-                    if np.sum(x_and_y == 255) != 0:
+                    if np.sum(x_and_y == 1) != 0:
                             img[0] = cv2.bitwise_xor(img[0], x_and_y)
-                if np.sum(img[0] == 255) > 0:
+                if np.sum(img[0] == 1) > 0:
                     instance_masks.append(img)
+            
+            # print(len(instance_masks))
 
             for index in range(len(instance_masks)):
                 pred_id += 1
@@ -156,15 +157,16 @@ class VisualizationDemo(object):
                 recogn_ids.append(instance_masks[index][2])
 
                 # mask = torch.squeeze(instances[index].pred_masks).numpy()*255
-                # mask = np.array(mask, np.uint8)
+                # mask = np.array(instance_masks[index][0], np.uint8)
                 # contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 # img_contours = np.zeros(image.shape)
                 # cv2.drawContours(img_contours, contours, -1, (255,255,255), thickness=cv2.FILLED)
-                # cv2.imwrite(f'temp.png', img_contours)
+                cv2.imwrite(f'temp.png', instance_masks[index][0]*255)
                 # mask = torch.from_numpy(mask / 255).unsqueeze(0)
-                # im = Image.open('temp.png')
-                # im = im.convert('1') 
-                img_contours = instance_masks[index]
+                im = Image.open('temp.png')
+                im = im.convert('1') 
+                # _, img_contours, _ = cv2.findContours(instance_masks[index][0], cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                img_contours = im
 
                 for gt_id_ in gt_ids:
                     gt_binary_mask = np.zeros((SIZE, SIZE))
@@ -208,9 +210,9 @@ class VisualizationDemo(object):
                 if pred != 0:
                     precision_.append(int(gt == pred))
             pq_ = sum_iou / max(len(semantic_performance_) / 2 + tp / 2, 1)
-            # testing_data[image_name]['semantic_performance'] = semantic_performance_
-            # testing_data[image_name]['recall'] = recall_
-            # testing_data[image_name]['precision'] = precision_
+            testing_data[image_name]['semantic_performance'] = semantic_performance_
+            testing_data[image_name]['recall'] = recall_
+            testing_data[image_name]['precision'] = precision_
             testing_data[image_name]['pq'] = pq_
 
             # overall_iou += sum_iou
@@ -218,14 +220,14 @@ class VisualizationDemo(object):
             # overall_num_instances += len(semantic_performance_)
 
             images_PQ.append(pq_)
-            # precision__ = sum(precision_) / max(len(precision_), 1)
-            # recall__ = sum(recall_) / max(len(recall_), 1)
-            # f1__ = 2 * precision__ * recall__ / max((precision__ + recall__), 1)
-            # images_recall.append(recall__)
-            # images_precision.append(precision__)
-            # testing_data[image_name]['f1'] = f1__
-            # images_f1.append(f1__)
-            print(f'{confidence_score} - {image_name} PQ: {pq_} F1: {0}')
+            precision__ = sum(precision_) / max(len(precision_), 1)
+            recall__ = sum(recall_) / max(len(recall_), 1)
+            f1__ = 2 * precision__ * recall__ / max((precision__ + recall__), 1)
+            images_recall.append(recall__)
+            images_precision.append(precision__)
+            testing_data[image_name]['f1'] = f1__
+            images_f1.append(f1__)
+            print(f'{confidence_score} - {image_name} PQ: {pq_} F1: {f1__}')
             return testing_data, images_PQ, images_f1, images_recall, images_precision
 
 
