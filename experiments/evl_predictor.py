@@ -217,8 +217,84 @@ class VisualizationDemo(object):
             print(f'{confidence_score} - {image_name} PQ: {pq_} F1: {f1__}')
             return testing_data, images_PQ, images_f1, images_recall, images_precision
 
+    def run_on_image2(self, image, image_name, gt_mask_path, confidence_score):
+        """
+        Args:
+            image (np.ndarray): an image of shape (H, W, C) (in BGR order).
+                This is the format used by OpenCV.
+        Returns:
+            predictions (dict): the output of the model.
+            vis_output (VisImage): the visualized image output.
+        """
+        global testing_data, images_recall, images_precision, images_f1, images_PQ
 
-        # return predictions, vis_output, vis_annotation
+        predictions = self.predictor(image)
+        # Convert image from OpenCV BGR format to Matplotlib RGB format.
+        image = image[:, :, ::-1]
+        # visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
+
+        if "instances" in predictions:
+            instances = predictions["instances"].to(self.cpu_device)
+
+            filtered_instances = []
+            for index in range(len(instances)): 
+                score = instances[index].scores[0]
+                if score > confidence_score:
+                    filtered_instances.append(instances[index])
+            
+            binary_mask_with_class = []
+            for i, instance in enumerate(filtered_instances):
+                instance_mask = torch.squeeze(instance.pred_masks).numpy()*255
+                instance_mask = np.array(instance_mask, np.uint8)
+                contour, _ = cv2.findContours(instance_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                img_contour = np.zeros(image.shape)
+                cv2.drawContours(img_contour, contour, -1, (255,255,255), thickness=cv2.FILLED)
+                _, blackAndWhiteImage = cv2.threshold(img_contour, 1, 1, cv2.THRESH_BINARY)
+                binary_mask_with_class.append([blackAndWhiteImage, instance.scores.tolist()[0], instance.pred_classes.tolist()[0]+1])
+            binary_mask_with_class = sorted(binary_mask_with_class, key=lambda d: d[1], reverse=True) 
+            instance_masks = []
+            for img in binary_mask_with_class:
+                for idx, mask in enumerate(instance_masks):
+                    x_and_y = cv2.bitwise_and(img[0], mask[0])
+                    if np.sum(x_and_y == 1) != 0:
+                            img[0] = cv2.bitwise_xor(img[0], x_and_y)
+                if np.sum(img[0] == 1) > 0:
+                    instance_masks.append(img)            
+
+            img_contours = np.zeros((SIZE, SIZE, 3))
+            text_img = np.zeros((SIZE, SIZE, 3))
+            for index in range(len(instance_masks)):
+                # print(instance_masks[index][2], instance_masks[index][1])
+                if index > 0:
+                    w_interval = np.full((SIZE,20 ,3,),255)
+                    img_contours = np.concatenate((img_contours, w_interval), axis=1)
+                    img_contours = np.concatenate((img_contours, instance_masks[index][0]*255), axis=1)                    
+                
+                    new_text_img = np.zeros((SIZE, SIZE, 3))
+                    position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3))
+                    cv2.putText(new_text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3*2))
+                    cv2.putText(new_text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    text_img = np.concatenate((text_img, w_interval), axis=1)
+                    text_img = np.concatenate((text_img, new_text_img), axis=1)
+                else:
+                    img_contours = instance_masks[index][0]*255
+                    position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3))
+                    cv2.putText(text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3*2))
+                    cv2.putText(text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+            h_interval = np.full((20,img_contours.shape[1] ,img_contours.shape[2],),255)
+            img_contours = np.concatenate((h_interval, img_contours), axis=0)
+            img_contours = np.concatenate((img_contours, h_interval), axis=0)
+            img_contours = np.concatenate((img_contours, text_img), axis=0)
+            img_contours = np.concatenate((img_contours, h_interval), axis=0)
+            s_interval = np.full((img_contours.shape[0],20 ,img_contours.shape[2],),255)
+            img_contours = np.concatenate((s_interval, img_contours), axis=1)
+            img_contours = np.concatenate((img_contours, s_interval), axis=1)
+            print(image_name)
+            cv2.imwrite(f'../data/contour/mixvegrice/{image_name}.png', img_contours)                  
+              
+            return
 
 
 class AsyncPredictor:
