@@ -36,8 +36,8 @@ LIGHT_TURQUOISE = (153, 217, 234)
 BLUE_GRAY = (112, 146, 190)
 LAVENDER = (200, 191, 231)
 
-BBOX_COLORS = [DARK_RED, RED, ORANGE, YELLOW, GREEN, TURQUOISE, INDIGO, PURPLE,
-               BROWN, ROSE, GOLD, LIGHT_YELLOW, LIME, LIGHT_TURQUOISE, BLUE_GRAY, LAVENDER]
+BBOX_COLORS = [RED, ORANGE, YELLOW, GREEN, TURQUOISE, INDIGO, PURPLE,
+               BROWN, ROSE, GOLD, LIGHT_YELLOW, LIME, LIGHT_TURQUOISE, BLUE_GRAY, LAVENDER, DARK_RED]
 
 import math
 import colorsys
@@ -262,37 +262,58 @@ class VisualizationDemo(object):
                     instance_masks.append(img)            
 
             img_contours = np.zeros((SIZE, SIZE, 3))
-            text_img = np.zeros((SIZE, SIZE, 3))
+            # text_img = np.zeros((SIZE, SIZE, 3))
+            colors = BBOX_COLORS
+            if len(instance_masks) > 16:
+                num_instances = len(instance_masks)
+                colors = [list(hsv2rgb(_id / (num_instances+1), 1)) for _id in range((num_instances+1))]
+
             for index in range(len(instance_masks)):
                 # print(instance_masks[index][2], instance_masks[index][1])
                 if index > 0:
-                    w_interval = np.full((SIZE,20 ,3,),255)
-                    img_contours = np.concatenate((img_contours, w_interval), axis=1)
-                    img_contours = np.concatenate((img_contours, instance_masks[index][0]*255), axis=1)                    
-                
-                    new_text_img = np.zeros((SIZE, SIZE, 3))
-                    position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3))
-                    cv2.putText(new_text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
-                    position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3*2))
-                    cv2.putText(new_text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
-                    text_img = np.concatenate((text_img, w_interval), axis=1)
-                    text_img = np.concatenate((text_img, new_text_img), axis=1)
+                    # w_interval = np.full((SIZE,20 ,3,),255)
+                    # img_contours = np.concatenate((img_contours, w_interval), axis=1)
+                    # img_contours = np.concatenate((img_contours, instance_masks[index][0]*255), axis=1)       
+                    color = colors[index]
+                    new_img_contour = instance_masks[index][0]*255             
+                    new_img_contour[:, :, 0]= np.where(new_img_contour[:, :, 0]==255,color[2],0)
+                    new_img_contour[:, :, 1]= np.where(new_img_contour[:, :, 1]==255,color[1],0)
+                    new_img_contour[:, :, 2]= np.where(new_img_contour[:, :, 2]==255,color[0],0)
+                    img_contours = cv2.add(img_contours, new_img_contour)
+                    # new_text_img = np.zeros((SIZE, SIZE, 3))
+                    # position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3))
+                    # cv2.putText(new_text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    # position = ((int) (new_text_img.shape[1]/7), (int) (new_text_img.shape[0]/3*2))
+                    # cv2.putText(new_text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    # text_img = np.concatenate((text_img, w_interval), axis=1)
+                    # text_img = np.concatenate((text_img, new_text_img), axis=1)
                 else:
+                    color = colors[index]
                     img_contours = instance_masks[index][0]*255
-                    position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3))
-                    cv2.putText(text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
-                    position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3*2))
-                    cv2.putText(text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
-            h_interval = np.full((20,img_contours.shape[1] ,img_contours.shape[2],),255)
-            img_contours = np.concatenate((h_interval, img_contours), axis=0)
-            img_contours = np.concatenate((img_contours, h_interval), axis=0)
-            img_contours = np.concatenate((img_contours, text_img), axis=0)
-            img_contours = np.concatenate((img_contours, h_interval), axis=0)
-            s_interval = np.full((img_contours.shape[0],20 ,img_contours.shape[2],),255)
-            img_contours = np.concatenate((s_interval, img_contours), axis=1)
-            img_contours = np.concatenate((img_contours, s_interval), axis=1)
-            print(image_name)
-            cv2.imwrite(f'../data/contour/mixvegrice/{image_name}.png', img_contours)                  
+                    img_contours[:, :, 0]= np.where(img_contours[:, :, 0]==255,color[2],0)
+                    img_contours[:, :, 1]= np.where(img_contours[:, :, 1]==255,color[1],0)
+                    img_contours[:, :, 2]= np.where(img_contours[:, :, 2]==255,color[0],0) 
+                    # img_contours[:, :, 1]=color[1]
+                    # img_contours[:, :, 2]=color[0]
+                    # print(img_contours)
+                    # contour, _ = cv2.findContours(img_contours, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    # img_contour = np.zeros(img_contours.shape)
+                    # cv2.drawContours(img_contour, contour, -1, color[...,::-1], thickness=cv2.FILLED)
+                    # cv2.imwrite(f'{image_name}.png', img_contours)        
+                    # position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3))
+                    # cv2.putText(text_img, f"id: {instance_masks[index][2]}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+                    # position = ((int) (text_img.shape[1]/7), (int) (text_img.shape[0]/3*2))
+                    # cv2.putText(text_img, f"score: {instance_masks[index][1]:.2f}",position,cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),3)
+            # h_interval = np.full((20,img_contours.shape[1] ,img_contours.shape[2],),255)
+            # img_contours = np.concatenate((h_interval, img_contours), axis=0)
+            # img_contours = np.concatenate((img_contours, h_interval), axis=0)
+            # img_contours = np.concatenate((img_contours, text_img), axis=0)
+            # img_contours = np.concatenate((img_contours, h_interval), axis=0)
+            # s_interval = np.full((img_contours.shape[0],20 ,img_contours.shape[2],),255)
+            # img_contours = np.concatenate((s_interval, img_contours), axis=1)
+            # img_contours = np.concatenate((img_contours, s_interval), axis=1)
+            # print(image_name)
+            cv2.imwrite(f'../data/color_mask/uec/{image_name}.png', img_contours)                  
               
             return
 
